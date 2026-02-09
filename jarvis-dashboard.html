@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Jarvis Dashboard</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg: var(--tg-theme-bg-color, #0d1117);
+  --text: var(--tg-theme-text-color, #e6edf3);
+  --hint: var(--tg-theme-hint-color, #7d8590);
+  --accent: var(--tg-theme-button-color, #1f6feb);
+  --btn-text: var(--tg-theme-button-text-color, #fff);
+  --secondary: var(--tg-theme-secondary-bg-color, #161b22);
+  --border: rgba(255,255,255,0.06);
+  --glow: rgba(31,111,235,0.15);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 0 16px 32px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 24px 0 8px;
+  position: relative;
+}
+.arc-reactor {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle, var(--glow) 0%, transparent 70%);
+  border: 2px solid var(--accent);
+  position: relative;
+}
+.arc-reactor::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(31,111,235,0.2);
+  animation: spin 8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.arc-reactor .core { font-size: 32px; }
+.header h1 { font-size: 22px; font-weight: 700; letter-spacing: 2px; }
+.header .clock { 
+  font-size: 13px; color: var(--hint); margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(31,111,235,0.12);
+  border: 1px solid rgba(31,111,235,0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px; font-weight: 600;
+  color: var(--accent);
+  margin-top: 10px;
+}
+.status-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #3fb950;
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* Grid */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.card {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.12s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.card:active { transform: scale(0.94); background: rgba(31,111,235,0.08); }
+.card .icon { font-size: 26px; margin-bottom: 6px; }
+.card .label { font-size: 13px; font-weight: 600; }
+.card .sublabel { font-size: 10px; color: var(--hint); margin-top: 3px; }
+.card.wide { grid-column: 1 / -1; }
+.card.accent-bg { 
+  background: var(--accent); 
+  border-color: var(--accent);
+  color: var(--btn-text);
+}
+.card.accent-bg .sublabel { color: rgba(255,255,255,0.7); }
+.card.accent-bg:active { opacity: 0.85; background: var(--accent); }
+
+/* Section */
+.section-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--hint); margin: 20px 0 8px; font-weight: 600;
+}
+
+/* Stats row */
+.stats { display: flex; gap: 8px; margin-top: 16px; }
+.stat {
+  flex: 1;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+}
+.stat .val { font-size: 20px; font-weight: 700; }
+.stat .lbl { font-size: 10px; color: var(--hint); margin-top: 2px; }
+
+/* Log */
+.log {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 12px; line-height: 1.7;
+  color: var(--hint);
+  max-height: 180px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.log .entry { padding: 3px 0; border-bottom: 1px solid var(--border); }
+.log .entry:last-child { border: none; }
+.log .time { color: var(--accent); font-weight: 600; font-size: 11px; }
+
+/* Haptic feedback indicator */
+.ripple { pointer-events: none; }
+
+/* Prompt input */
+.prompt-bar {
+  display: flex; gap: 8px; margin-top: 10px;
+}
+.prompt-bar input {
+  flex: 1;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+.prompt-bar input::placeholder { color: var(--hint); }
+.prompt-bar input:focus { border-color: var(--accent); }
+.prompt-bar button {
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  padding: 0 16px;
+  color: var(--btn-text);
+  font-size: 16px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="arc-reactor"><span class="core">⚡</span></div>
+  <h1>J.A.R.V.I.S.</h1>
+  <div class="clock" id="clock">—</div>
+  <div class="status-badge"><span class="dot"></span>ONLINE</div>
+</div>
+
+<div class="stats">
+  <div class="stat">
+    <div class="val" id="uptime">—</div>
+    <div class="lbl">UPTIME (H)</div>
+  </div>
+  <div class="stat">
+    <div class="val" id="heartbeats">—</div>
+    <div class="lbl">HEARTBEATS</div>
+  </div>
+  <div class="stat">
+    <div class="val" id="skills">11</div>
+    <div class="lbl">SKILLS</div>
+  </div>
+</div>
+
+<div class="section-title">Commands</div>
+<div class="grid">
+  <div class="card" onclick="send('/heartbeat')">
+    <div class="icon">💓</div>
+    <div class="label">Heartbeat</div>
+    <div class="sublabel">Run improvement cycle</div>
+  </div>
+  <div class="card" onclick="send('/status')">
+    <div class="icon">📊</div>
+    <div class="label">Status</div>
+    <div class="sublabel">Session & usage</div>
+  </div>
+  <div class="card" onclick="send('/briefing')">
+    <div class="icon">☀️</div>
+    <div class="label">Briefing</div>
+    <div class="sublabel">Daily summary</div>
+  </div>
+  <div class="card" onclick="send('/health')">
+    <div class="icon">🏥</div>
+    <div class="label">Health</div>
+    <div class="sublabel">System check</div>
+  </div>
+  <div class="card" onclick="send('/memory')">
+    <div class="icon">🧠</div>
+    <div class="label">Memory</div>
+    <div class="sublabel">What I know</div>
+  </div>
+  <div class="card" onclick="send('/panel')">
+    <div class="icon">🎛️</div>
+    <div class="label">Panel</div>
+    <div class="sublabel">Command panel</div>
+  </div>
+</div>
+
+<div class="section-title">Quick Ask</div>
+<div class="prompt-bar">
+  <input type="text" id="prompt" placeholder="Ask Jarvis anything…" 
+         onkeydown="if(event.key==='Enter')sendPrompt()">
+  <button onclick="sendPrompt()">→</button>
+</div>
+
+<div class="section-title">Recent Activity</div>
+<div class="log" id="log">
+  <div class="entry"><span class="time">04:32</span> Setup review — SOUL.md and AGENTS.md healthy</div>
+  <div class="entry"><span class="time">04:22</span> Researched cost optimization for heartbeats</div>
+  <div class="entry"><span class="time">04:12</span> System health check — all green</div>
+  <div class="entry"><span class="time">04:02</span> Built web-researcher skill</div>
+  <div class="entry"><span class="time">03:32</span> Added deep link mappings</div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  if (tg.requestFullscreen) tg.requestFullscreen();
+  tg.enableClosingConfirmation();
+  tg.setHeaderColor(getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0d1117');
+}
+
+// Live clock
+function updateClock() {
+  const now = new Date();
+  const opts = { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  const dateOpts = { timeZone: 'Asia/Jakarta', weekday: 'long', month: 'short', day: 'numeric' };
+  document.getElementById('clock').textContent = 
+    now.toLocaleDateString('en-US', dateOpts) + ' • ' + now.toLocaleTimeString('en-US', opts);
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// Uptime (from midnight tonight when Jarvis started)
+const started = new Date('2026-02-09T00:15:00+07:00');
+function updateUptime() {
+  const h = Math.floor((Date.now() - started.getTime()) / 3600000);
+  document.getElementById('uptime').textContent = h;
+  // Estimate heartbeats (every 10 min)
+  document.getElementById('heartbeats').textContent = Math.floor((Date.now() - started.getTime()) / 600000);
+}
+updateUptime();
+setInterval(updateUptime, 60000);
+
+function haptic(type) {
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred(type || 'light');
+}
+
+function send(text) {
+  haptic('medium');
+  if (tg) {
+    tg.sendData(JSON.stringify({ command: text, ts: Date.now() }));
+  } else {
+    console.log('Command:', text);
+    alert('Would send: ' + text);
+  }
+}
+
+function sendPrompt() {
+  const input = document.getElementById('prompt');
+  const text = input.value.trim();
+  if (!text) return;
+  haptic('light');
+  input.value = '';
+  send(text);
+}
+</script>
+</body>
+</html>
