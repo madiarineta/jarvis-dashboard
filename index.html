@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Jarvis Dashboard</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg: var(--tg-theme-bg-color, #0d1117);
+  --text: var(--tg-theme-text-color, #e6edf3);
+  --hint: var(--tg-theme-hint-color, #7d8590);
+  --accent: var(--tg-theme-button-color, #238636);
+  --btn-text: var(--tg-theme-button-text-color, #fff);
+  --secondary: var(--tg-theme-secondary-bg-color, #161b22);
+  --border: var(--tg-theme-section-separator-color, #30363d);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 16px;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+.header { text-align: center; margin-bottom: 20px; }
+.avatar {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #238636 0%, #1f6feb 100%);
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  animation: pulse 3s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(35, 134, 54, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(35, 134, 54, 0); }
+}
+h1 { font-size: 22px; font-weight: 600; }
+.subtitle { color: var(--hint); font-size: 13px; }
+.card {
+  background: var(--secondary);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+.card h2 { font-size: 11px; color: var(--hint); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.stat-row:last-child { border-bottom: none; }
+.stat-label { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.stat-value { font-size: 14px; font-weight: 500; font-family: 'SF Mono', Monaco, monospace; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.status-online { background: #3fb950; animation: blink 2s infinite; }
+.status-warn { background: #d29922; }
+.status-error { background: #f85149; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.action-btn {
+  background: var(--accent);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.action-btn:active { transform: scale(0.96); opacity: 0.8; }
+.action-btn.secondary {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.action-btn .icon { font-size: 20px; }
+.loading { text-align: center; padding: 20px; color: var(--hint); }
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.timestamp { font-size: 11px; color: var(--hint); margin-top: 4px; }
+.activity-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }
+.activity-text { font-size: 13px; }
+.refresh-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.refresh-btn:active { background: rgba(35, 134, 54, 0.1); }
+.error-banner {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid #f85149;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #f85149;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="avatar">🤖</div>
+  <h1>Jarvis</h1>
+  <p class="subtitle">Autonomous AI Workspace</p>
+</div>
+
+<div id="error-banner"></div>
+
+<div class="card">
+  <h2>🟢 System Status</h2>
+  <div class="stat-row">
+    <span class="stat-label"><span class="status-dot status-online"></span>Agent Status</span>
+    <span class="stat-value" id="agent-status">Online</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">🕐 Uptime</span>
+    <span class="stat-value" id="uptime">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">💾 Disk</span>
+    <span class="stat-value" id="disk">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">🧠 Load</span>
+    <span class="stat-value" id="load">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">📊 Heartbeat</span>
+    <span class="stat-value" id="heartbeat">Every 5m</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>📈 Recent Activity <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button></h2>
+  <div id="activity">
+    <div class="loading"><span class="spinner"></span>Loading...</div>
+  </div>
+  <p class="timestamp" id="last-updated"></p>
+</div>
+
+<div class="card">
+  <h2>⚡ Quick Actions</h2>
+  <div class="actions">
+    <button class="action-btn" onclick="sendCmd('/heartbeat')">
+      <span class="icon">💓</span> Run Heartbeat
+    </button>
+    <button class="action-btn" onclick="sendCmd('/status')">
+      <span class="icon">📊</span> Full Status
+    </button>
+    <button class="action-btn" onclick="sendCmd('/briefing')">
+      <span class="icon">☀️</span> Briefing
+    </button>
+    <button class="action-btn" onclick="sendCmd('/health')">
+      <span class="icon">🏥</span> Health Check
+    </button>
+    <button class="action-btn secondary" onclick="sendCmd('What are you working on?')">
+      <span class="icon">🔍</span> Current Task
+    </button>
+    <button class="action-btn secondary" onclick="sendCmd('/memory')">
+      <span class="icon">🧠</span> Search Memory
+    </button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🛠️ Skills & Tools</h2>
+  <div class="stat-row">
+    <span class="stat-label">Custom Skills</span>
+    <span class="stat-value" id="custom-skills">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Workspace Skills</span>
+    <span class="stat-value" id="workspace-skills">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Active Crons</span>
+    <span class="stat-value" id="active-crons">—</span>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// Theme handling
+document.body.style.background = tg.themeParams.bg_color || '#0d1117';
+
+// Data management
+const CACHE_KEY = 'jarvis_dashboard_data';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedData() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL) return data;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function setCachedData(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch (e) {}
+}
+
+// Send command to bot
+function sendCmd(text) {
+  tg.sendData(JSON.stringify({ command: text, timestamp: Date.now() }));
+  tg.showPopup({
+    title: 'Command Sent',
+    message: `"${text}" sent to Jarvis`,
+    buttons: [{ type: 'ok' }]
+  });
+  // Haptic feedback
+  if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+}
+
+// Update UI with data
+function updateUI(data) {
+  if (data.uptime) document.getElementById('uptime').textContent = data.uptime;
+  if (data.disk) document.getElementById('disk').textContent = data.disk;
+  if (data.load) document.getElementById('load').textContent = data.load;
+  if (data.heartbeat) document.getElementById('heartbeat').textContent = data.heartbeat;
+  if (data.customSkills) document.getElementById('custom-skills').textContent = data.customSkills;
+  if (data.workspaceSkills) document.getElementById('workspace-skills').textContent = data.workspaceSkills;
+  if (data.activeCrons) document.getElementById('active-crons').textContent = data.activeCrons;
+  
+  if (data.activities && data.activities.length > 0) {
+    const html = data.activities.map(a => `
+      <div class="activity-item">
+        <div class="activity-text">${a.icon} ${a.text}</div>
+        <div class="timestamp">${a.time}</div>
+      </div>
+    `).join('');
+    document.getElementById('activity').innerHTML = html;
+  }
+  
+  if (data.lastUpdated) {
+    document.getElementById('last-updated').textContent = 'Updated: ' + data.lastUpdated;
+  }
+  
+  // Show errors if any
+  const errorBanner = document.getElementById('error-banner');
+  if (data.errors && data.errors.length > 0) {
+    errorBanner.innerHTML = `⚠️ ${data.errors.length} cron job(s) with issues. Check /health for details.`;
+    errorBanner.style.display = 'block';
+  } else {
+    errorBanner.style.display = 'none';
+  }
+}
+
+// Request fresh data from bot
+function refreshData() {
+  document.getElementById('activity').innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
+  tg.sendData(JSON.stringify({ action: 'get_dashboard_data' }));
+  
+  // Set timeout to show cached data if no response
+  setTimeout(() => {
+    const cached = getCachedData();
+    if (cached) updateUI(cached);
+  }, 3000);
+}
+
+// Handle data from bot
+tg.onEvent('web_app_data', (event) => {
+  try {
+    const data = JSON.parse(event.data);
+    setCachedData(data);
+    updateUI(data);
+  } catch (e) {
+    console.error('Failed to parse web_app_data:', e);
+  }
+});
+
+// Initialize with cached data or defaults
+const cached = getCachedData();
+if (cached) {
+  updateUI(cached);
+} else {
+  // Default placeholder data
+  updateUI({
+    uptime: 'Checking...',
+    disk: 'Checking...',
+    load: 'Checking...',
+    heartbeat: 'Every 5m',
+    customSkills: '10+',
+    workspaceSkills: '8',
+    activeCrons: '5',
+    activities: [
+      { icon: '🔄', text: 'Waiting for data...', time: 'Just now' }
+    ],
+    lastUpdated: new Date().toLocaleTimeString()
+  });
+}
+
+// Auto-refresh on visibility change
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    refreshData();
+  }
+});
+</script>
+</body>
+</html>
